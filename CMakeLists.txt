@@ -19,6 +19,8 @@ find_package(Boost REQUIRED COMPONENTS system)
 # find_package(PCL REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -56,7 +58,9 @@ add_library(PandarGeneral
     src/HesaiLidar_General_SDK/src/PandarGeneralRaw/src/pandarGeneral.cc
 )
 
-ament_target_dependencies(PandarGeneral 
+ament_target_dependencies(PandarGeneral
+  "diagnostic_msgs"
+  "diagnostic_updater"
   "tf2_ros"
 )
 

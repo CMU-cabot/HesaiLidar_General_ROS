@@ -2,6 +2,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <hesai_lidar/msg/pandar_scan.hpp>
 #include <hesai_lidar/msg/pandar_packet.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
+#include <diagnostic_updater/publisher.hpp>
 #include <image_transport/image_transport.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -25,7 +27,8 @@ namespace hesai_lidar
 class HesaiLidarClient: public rclcpp::Node
 {
 public:
-  HesaiLidarClient():Node("hesai_lidar")
+  HesaiLidarClient():Node("hesai_lidar"),
+  diagnostics_(this)
   { 
     this->declare_parameter<std::string>("pcap_file", "");
     this->declare_parameter<std::string>("server_ip", "");
@@ -43,6 +46,7 @@ public:
     this->declare_parameter<bool>("coordinate_correction_flag", false);
     this->declare_parameter<std::string>("target_frame", "");
     this->declare_parameter<std::string>("fixed_frame", "");
+    this->declare_parameter<double>("target_fps", 10.0);
     rclcpp::QoS qos(rclcpp::KeepLast(7)); 
     auto sensor_qos = rclcpp::QoS(rclcpp::SensorDataQoS());
     lidarPublisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("pandar", sensor_qos);
@@ -61,6 +65,7 @@ private:
       sensor_msgs::msg::PointCloud2 output;
       pcl::toROSMsg(*cld, output);
       lidarPublisher->publish(output);
+      diag_pointcloud_->tick(now);
 #ifdef PRINT_FLAG
         std::cout.setf(ios::fixed);
         std::cout << "timestamp: " << std::setprecision(10) << timestamp << ", point size: " << cld->points.size() << std::endl;
@@ -68,6 +73,9 @@ private:
     }
     if(m_sPublishType == "both" || m_sPublishType == "raw"){
       packetPublisher->publish(*scan);
+      int64_t seconds = static_cast<int64_t>(timestamp);
+      uint32_t nanoseconds = static_cast<uint32_t>((timestamp - seconds) * 1e9);
+      diag_packet_->tick(rclcpp::Time(seconds, nanoseconds));
 #ifdef PRINT_FLAG
         std::cout << "raw size: "<< scan->packets.size() << std::endl;
 #endif
@@ -121,6 +129,20 @@ private:
     this->get_parameter("fixed_frame", fixedFrame);
     this->get_parameter("background_b", targetFrame);
   
+    // diagnostic updater
+    this->get_parameter("target_fps", target_fps_);
+    std::string deviceName = std::string("HesaiLidar ") + lidarType;
+    diagnostics_.setHardwareID(deviceName);
+    diag_pointcloud_ = std::make_unique<diagnostic_updater::TopicDiagnostic>(
+      "hesai_pointcloud", diagnostics_, diagnostic_updater::FrequencyStatusParam(
+        &target_fps_, &target_fps_, 0.1, 2),
+        diagnostic_updater::TimeStampStatusParam());
+
+    diag_packet_ = std::make_unique<diagnostic_updater::TopicDiagnostic>(
+      "hesai_packets", diagnostics_, diagnostic_updater::FrequencyStatusParam(
+        &target_fps_, &target_fps_, 0.1, 2),
+        diagnostic_updater::TimeStampStatusParam());
+
     if(!pcapFile.empty()){
       hsdk = new PandarGeneralSDK(pcapFile, std::bind(&HesaiLidarClient::lidarCallback, this, _1, _2, _3), \
       static_cast<int>(startAngle * 100 + 0.5), 0, pclDataType, lidarType, frameId, m_sTimestampType, lidarCorrectionFile, \
@@ -179,6 +201,10 @@ private:
   string m_sPublishType;
   string m_sTimestampType;
   rclcpp::Subscription<hesai_lidar::msg::PandarScan>::SharedPtr packetSubscriber;
+  diagnostic_updater::Updater diagnostics_;
+  std::unique_ptr<diagnostic_updater::TopicDiagnostic> diag_pointcloud_;
+  std::unique_ptr<diagnostic_updater::TopicDiagnostic> diag_packet_;
+  double target_fps_;
 };
 }
 int main(int argc, char **argv)
