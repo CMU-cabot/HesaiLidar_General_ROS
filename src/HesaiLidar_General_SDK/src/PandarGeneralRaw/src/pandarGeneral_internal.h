@@ -456,6 +456,7 @@ class PandarGeneral_Internal {
   float cos_lookup_table_[ROTATION_MAX_UNITS];
 
   uint16_t last_azimuth_;
+  uint16_t start_azimuth_ = 0; // variable used for debug
 
   float elev_angle_map_[LASER_COUNT];
   float horizatal_azimuth_offset_map_[LASER_COUNT];

@@ -960,6 +960,12 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
       if (ret != 0) {
         continue;
       }
+
+      // set start azimuth before pushing raw packet
+      if (scan->packets.empty()){
+        start_azimuth_ = pkt.blocks[0].azimuth;
+      }
+
       scan->packets.push_back(rawpacket);
       for (int i = 0; i < pkt.header.chBlockNumber; ++i) {
         int azimuthGap = 0; /* To do */
@@ -978,6 +984,7 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
                start_angle_ <= pkt.blocks[i].azimuth)) {
             if (pcl_callback_ && (iPointCloudIndex > 0 || PointCloudList[0].size() > 0)) {
               scan->packets.push_back(SaveCorrectionFile(pkt.header.chLaserNumber));
+              LOG_D("start_azimuth_:%d last_azimuth_:%d pkt.blocks[%d].azimuth:%d azimuthGap:%d", start_azimuth_, last_azimuth_, i ,pkt.blocks[i].azimuth, azimuthGap);
               EmitBackMessege(pkt.header.chLaserNumber, outMsg, scan);
               scan->packets.clear();
               // if(!computeTransformToTarget(rawpacket.stamp))
@@ -985,7 +992,7 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
             }
           }
         } else {
-          //printf("last_azimuth_:%d pkt.blocks[i].azimuth:%d  *******azimuthGap:%d\n", last_azimuth_, pkt.blocks[i].azimuth, azimuthGap);
+          LOG_D("last_azimuth_:%d pkt.blocks[i].azimuth:%d  *******azimuthGap:%d", last_azimuth_, pkt.blocks[i].azimuth, azimuthGap);
         }
         CalcXTPointXYZIT(&pkt, i, pkt.header.chLaserNumber, outMsg);
         last_azimuth_ = pkt.blocks[i].azimuth;
@@ -1883,6 +1890,7 @@ void PandarGeneral_Internal::EmitBackMessege(char chLaserNumber, boost::shared_p
     cld->height = 1;
     iPointCloudIndex = 0;
   }
+  LOG_D("EmitBackMessege cld->points.size:%ld scan->packets.size:%ld", cld->points.size(), scan->packets.size());
   pcl_callback_(cld, cld->points[0].timestamp, scan); // the timestamp from first point cloud of cld
   if (pcl_type_) {
     for (int i=0; i<chLaserNumber; i++) {
