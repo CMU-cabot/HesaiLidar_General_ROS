@@ -769,12 +769,12 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
   //   return;
 
   while (enable_lidar_process_thr_) {
-    if (!m_PacketsBuffer.hasEnoughPackets()) {
+    PandarPacket packet;
+    if (!m_PacketsBuffer.pop(packet))
+    {
       usleep(1000);
       continue;
     }
-    PandarPacket packet = *(m_PacketsBuffer.getIterCalc());
-    m_PacketsBuffer.moveIterCalc();
     // rawpacket.stamp = packet.stamp;
     // rawpacket.stamp.nanosec = (packet.stamp - floor(packet.stamp))*1000000000;
     rawpacket.stamp.sec = floor(packet.stamp);
