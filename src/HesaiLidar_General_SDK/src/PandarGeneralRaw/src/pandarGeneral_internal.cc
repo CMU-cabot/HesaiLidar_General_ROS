@@ -979,7 +979,13 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
         }
 
         // predict packets size
-        int packets_size_pred = 36000 / (HS_LIDAR_XT_BLOCK_NUMBER * azimuthGap);
+        int return_num = 1;
+        if (pkt.header.chReturnType == 0x00){
+          return_num = 1; // single return
+        }else{
+          return_num = 2; // dual return
+        }
+        int packets_size_pred = 36000 / (HS_LIDAR_XT_BLOCK_NUMBER * azimuthGap) * return_num;
 
         if (last_azimuth_ != pkt.blocks[i].azimuth && \
             azimuthGap < 600 /* 6 degree*/) {
@@ -1009,6 +1015,8 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
               //   return; // target frame not available
             }
           }
+        } else if (last_azimuth_ == pkt.blocks[i].azimuth){
+          // dual return
         } else {
           LOG_D("Detected jumped azimuth. last_azimuth_:%d pkt.blocks[i].azimuth:%d  *******azimuthGap:%d", last_azimuth_, pkt.blocks[i].azimuth, azimuthGap);
         }
