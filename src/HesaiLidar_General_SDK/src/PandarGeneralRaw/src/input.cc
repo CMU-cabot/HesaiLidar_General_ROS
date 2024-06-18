@@ -135,6 +135,7 @@ int Input::getPacket(PandarPacket *pkt) {
     return -1;
   }
   if (retval == 0) {
+    LOG_E("poll() timeout");
     return -1;
   }
   if ((fds[0].revents & POLLERR) || (fds[0].revents & POLLHUP) ||
