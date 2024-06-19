@@ -768,13 +768,16 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
   // if(!computeTransformToTarget(ros::Time::now()))
   //   return;
 
+  // variable for dropping incomplete pointcloud
+  int packets_size_normal = 0;
+
   while (enable_lidar_process_thr_) {
-    if (!m_PacketsBuffer.hasEnoughPackets()) {
+    PandarPacket packet;
+    if (!m_PacketsBuffer.pop(packet))
+    {
       usleep(1000);
       continue;
     }
-    PandarPacket packet = *(m_PacketsBuffer.getIterCalc());
-    m_PacketsBuffer.moveIterCalc();
     // rawpacket.stamp = packet.stamp;
     // rawpacket.stamp.nanosec = (packet.stamp - floor(packet.stamp))*1000000000;
     rawpacket.stamp.sec = floor(packet.stamp);
@@ -800,7 +803,7 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
         int azimuthGap = 0; /* To do */
 
         if(last_azimuth_ > pkt.blocks[i].azimuth) {
-          // azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
+          azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
         } else {
           azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) - static_cast<int>(last_azimuth_);
         }
@@ -841,7 +844,7 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
       for (int i = 0; i < pkt.header.chBlockNumber; ++i) {
         int azimuthGap = 0; /* To do */
         if(last_azimuth_ > pkt.blocks[i].azimuth) {
-          // azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
+          azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
         } else {
           azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) - static_cast<int>(last_azimuth_);
         }
@@ -882,7 +885,7 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
       for (int i = 0; i < pkt.header.chBlockNumber; ++i) {
         int azimuthGap = 0; /* To do */
         if(last_azimuth_ > pkt.blocks[i].azimuth) {
-          // azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
+          azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
         } else {
           azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) - static_cast<int>(last_azimuth_);
         }
@@ -922,7 +925,7 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
       for (int i = 0; i < pkt.header.chBlockNumber; ++i) {
         int azimuthGap = 0; /* To do */
         if(last_azimuth_ > pkt.blocks[i].azimuth) {
-          // azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
+          azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
         } else {
           azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) - static_cast<int>(last_azimuth_);
         }
@@ -960,14 +963,29 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
       if (ret != 0) {
         continue;
       }
+
+      // set start azimuth before pushing raw packet
+      if (scan->packets.empty()){
+        start_azimuth_ = pkt.blocks[0].azimuth;
+      }
+
       scan->packets.push_back(rawpacket);
       for (int i = 0; i < pkt.header.chBlockNumber; ++i) {
         int azimuthGap = 0; /* To do */
         if(last_azimuth_ > pkt.blocks[i].azimuth) {
-          // azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
+          azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) + (36000 - static_cast<int>(last_azimuth_));
         } else {
           azimuthGap = static_cast<int>(pkt.blocks[i].azimuth) - static_cast<int>(last_azimuth_);
         }
+
+        // predict packets size
+        int return_num = 1;
+        if (pkt.header.chReturnType == 0x00){
+          return_num = 1; // single return
+        }else{
+          return_num = 2; // dual return
+        }
+        int packets_size_pred = 36000 / (HS_LIDAR_XT_BLOCK_NUMBER * azimuthGap) * return_num;
 
         if (last_azimuth_ != pkt.blocks[i].azimuth && \
             azimuthGap < 600 /* 6 degree*/) {
@@ -977,15 +995,30 @@ void PandarGeneral_Internal::ProcessLiarPacket() {
               (last_azimuth_ < start_angle_ &&
                start_angle_ <= pkt.blocks[i].azimuth)) {
             if (pcl_callback_ && (iPointCloudIndex > 0 || PointCloudList[0].size() > 0)) {
+              size_t packets_size = scan->packets.size(); // get size before pushing SaveCorrectionFile
               scan->packets.push_back(SaveCorrectionFile(pkt.header.chLaserNumber));
-              EmitBackMessege(pkt.header.chLaserNumber, outMsg, scan);
+              // set packets_size_normal only when predicted packets_size matches packets_size
+              if (packets_size == packets_size_pred){
+                packets_size_normal = packets_size_pred;
+              }
+              bool publish =  packets_size_normal/2 <= packets_size; // publish pointcloud and packet topic when packets_size is sufficiently large.
+              size_t points_size = EmitBackMessege(pkt.header.chLaserNumber, outMsg, scan, publish);
+              if (!publish){
+                LOG_D("Skipped publishing points (points_size:%ld) and packets because packets_size:%ld < packets_size_normal:%ld / 2", points_size, packets_size, packets_size_normal);
+                LOG_D("start_azimuth_:%d last_azimuth_:%d pkt.blocks[%d].azimuth:%d azimuthGap:%d", start_azimuth_, last_azimuth_, i ,pkt.blocks[i].azimuth, azimuthGap);
+              } else if (packets_size < packets_size_normal){ // just for logging
+                LOG_D("Detected missing packets but published points (points_size:%ld) because packets_size:%ld >= packets_size_normal:%ld / 2", points_size, packets_size, packets_size_normal);
+                LOG_D("start_azimuth_:%d last_azimuth_:%d pkt.blocks[%d].azimuth:%d azimuthGap:%d", start_azimuth_, last_azimuth_, i ,pkt.blocks[i].azimuth, azimuthGap);
+              }
               scan->packets.clear();
               // if(!computeTransformToTarget(rawpacket.stamp))
               //   return; // target frame not available
             }
           }
+        } else if (last_azimuth_ == pkt.blocks[i].azimuth){
+          // dual return
         } else {
-          //printf("last_azimuth_:%d pkt.blocks[i].azimuth:%d  *******azimuthGap:%d\n", last_azimuth_, pkt.blocks[i].azimuth, azimuthGap);
+          LOG_D("Detected jumped azimuth. last_azimuth_:%d pkt.blocks[i].azimuth:%d  *******azimuthGap:%d", last_azimuth_, pkt.blocks[i].azimuth, azimuthGap);
         }
         CalcXTPointXYZIT(&pkt, i, pkt.header.chLaserNumber, outMsg);
         last_azimuth_ = pkt.blocks[i].azimuth;
@@ -1869,7 +1902,11 @@ void PandarGeneral_Internal::CalcXTPointXYZIT(HS_LIDAR_XT_Packet *pkt, int block
   }
 }
 
-void PandarGeneral_Internal::EmitBackMessege(char chLaserNumber, boost::shared_ptr<PPointCloud> cld, hesai_lidar::msg::PandarScan::SharedPtr scan) {
+size_t PandarGeneral_Internal::EmitBackMessege(char chLaserNumber, boost::shared_ptr<PPointCloud> cld, hesai_lidar::msg::PandarScan::SharedPtr scan) {
+    return EmitBackMessege(chLaserNumber, cld, scan, true);
+}
+
+size_t PandarGeneral_Internal::EmitBackMessege(char chLaserNumber, boost::shared_ptr<PPointCloud> cld, hesai_lidar::msg::PandarScan::SharedPtr scan, bool publish) {
   if (pcl_type_) {
     for (int i=0; i<chLaserNumber; i++) {
       for (int j=0; j<PointCloudList[i].size(); j++) {
@@ -1883,7 +1920,10 @@ void PandarGeneral_Internal::EmitBackMessege(char chLaserNumber, boost::shared_p
     cld->height = 1;
     iPointCloudIndex = 0;
   }
-  pcl_callback_(cld, cld->points[0].timestamp, scan); // the timestamp from first point cloud of cld
+  size_t points_size = cld->points.size();
+  if (publish){
+    pcl_callback_(cld, cld->points[0].timestamp, scan); // the timestamp from first point cloud of cld
+  }
   if (pcl_type_) {
     for (int i=0; i<chLaserNumber; i++) {
       PointCloudList[i].clear();
@@ -1893,6 +1933,8 @@ void PandarGeneral_Internal::EmitBackMessege(char chLaserNumber, boost::shared_p
       cld->height = 1;
     }
   }
+
+  return points_size;
 }
 
 void PandarGeneral_Internal::PushScanPacket(hesai_lidar::msg::PandarScan::SharedPtr scan) {
