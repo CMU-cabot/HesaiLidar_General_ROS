@@ -1450,7 +1450,7 @@ void PandarGeneral_Internal::CalcPointXYZIT(Pandar40PPacket *pkt, int blockid,
     PPoint point;
 
     /* skip wrong points */
-    if (unit.distance <= 0.1 || unit.distance > 200.0) {
+    if (unit.distance <= 0.01 || unit.distance > 200.0) {
       continue;
     }
 
@@ -1528,7 +1528,7 @@ void PandarGeneral_Internal::CalcL64PointXYZIT(HS_LIDAR_L64_Packet *pkt, int blo
     PPoint point;
 
     /* skip wrong points */
-    if (unit.distance <= 0.1 || unit.distance > 200.0) {
+    if (unit.distance <= 0.01 || unit.distance > 200.0) {
       continue;
     }
 
@@ -1607,7 +1607,7 @@ void PandarGeneral_Internal::CalcL20PointXYZIT(HS_LIDAR_L20_Packet *pkt, int blo
     PPoint point;
 
     /* skip wrong points */
-    if (unit.distance <= 0.1 || unit.distance > 200.0) {
+    if (unit.distance <= 0.01 || unit.distance > 200.0) {
       continue;
     }
 
@@ -1696,7 +1696,7 @@ void PandarGeneral_Internal::CalcQTPointXYZIT(HS_LIDAR_QT_Packet *pkt, int block
     PPoint point;
 
     /* skip wrong points */
-    if (unit.distance <= 0.1 || unit.distance > 200.0) {
+    if (unit.distance <= 0.01 || unit.distance > 200.0) {
       continue;
     }
 
@@ -1831,7 +1831,7 @@ void PandarGeneral_Internal::CalcXTPointXYZIT(HS_LIDAR_XT_Packet *pkt, int block
     PPoint point;
 
     /* skip wrong points */
-    if (unit.distance <= 0.1 || unit.distance > 200.0) {
+    if (unit.distance <= 0.01 || unit.distance > 200.0) {
       continue;
     }
 
