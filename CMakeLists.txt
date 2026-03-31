@@ -49,6 +49,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES builtin_interfaces 
 )
 find_package(PCL REQUIRED COMPONENTS io)
+
+# rosidl_generator_rs may append -Wl,--no-undefined globally; keep legacy build behavior here.
+string(REPLACE "-Wl,--no-undefined" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+
 ament_export_dependencies(rosidl_default_runtime)
 ##PandarGeneralRaw
 add_library(PandarGeneral
