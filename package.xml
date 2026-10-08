@@ -19,6 +19,7 @@
   <depend>image_transport</depend>
   <depend>rclcpp_action</depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
+  <test_depend>ament_cmake_gtest</test_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>

@@ -167,4 +167,13 @@ install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
 
 ament_export_include_directories(include)
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_pointcloud_message test/test_pointcloud_message.cpp)
+  target_include_directories(test_pointcloud_message PRIVATE
+    src src/HesaiLidar_General_SDK/src/PandarGeneralRaw/include ${PCL_INCLUDE_DIRS})
+  ament_target_dependencies(test_pointcloud_message pcl_conversions sensor_msgs)
+  target_link_libraries(test_pointcloud_message ${PCL_IO_LIBRARIES})
+endif()
+
 ament_package()

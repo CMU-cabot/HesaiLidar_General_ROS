@@ -14,6 +14,7 @@
 #include <chrono>
 #include <string>
 #include <functional>
+#include "pointcloud_message.hpp"
 #include "std_msgs/msg/string.hpp"
 // #define PRINT_FLAG 
 
@@ -60,12 +61,15 @@ private:
   void lidarCallback(boost::shared_ptr<PPointCloud> cld, double timestamp, hesai_lidar::msg::PandarScan::SharedPtr scan) // the timestamp from first point cloud of cld
   {
     if(m_sPublishType == "both" || m_sPublishType == "points"){
-      rclcpp::Time now = this->now();
-      pcl_conversions::toPCL(now, cld->header.stamp);
       sensor_msgs::msg::PointCloud2 output;
-      pcl::toROSMsg(*cld, output);
+      try {
+        output = measurementPointCloud(*cld, timestamp);
+      } catch (const std::invalid_argument & error) {
+        RCLCPP_ERROR(this->get_logger(), "Dropping cloud with invalid measurement time: %s", error.what());
+        return;
+      }
       lidarPublisher->publish(output);
-      diag_pointcloud_->tick(now);
+      diag_pointcloud_->tick(rclcpp::Time(output.header.stamp));
 #ifdef PRINT_FLAG
         std::cout.setf(ios::fixed);
         std::cout << "timestamp: " << std::setprecision(10) << timestamp << ", point size: " << cld->points.size() << std::endl;
