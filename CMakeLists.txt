@@ -169,6 +169,9 @@ install(DIRECTORY launch
 ament_export_include_directories(include)
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_utc_time test/test_utc_time.cpp)
+  target_include_directories(test_utc_time PRIVATE
+    src/HesaiLidar_General_SDK/src/PandarGeneralRaw/include)
   ament_add_gtest(test_pointcloud_message test/test_pointcloud_message.cpp)
   target_include_directories(test_pointcloud_message PRIVATE
     src src/HesaiLidar_General_SDK/src/PandarGeneralRaw/include ${PCL_INCLUDE_DIRS})

@@ -3,6 +3,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "pcap_reader.h"
+#include "pandarGeneral/utc_time.h"
 #include "log.h"
 #include <map>
 #include "../util.h"
@@ -122,7 +123,7 @@ void PcapReader::parsePcap() {
       t.tm_isdst = 0;
 
 
-      pkt_ts = mktime(&t) * 1000000 + ((packet[m_iTsIndex]& 0xff) | \
+      pkt_ts = hesai::UtcToUnixSeconds(t) * 1000000 + ((packet[m_iTsIndex]& 0xff) | \
           (packet[m_iTsIndex+1]& 0xff) << 8 | \
           ((packet[m_iTsIndex+2]& 0xff) << 16) | \
           ((packet[m_iTsIndex+3]& 0xff) << 24));

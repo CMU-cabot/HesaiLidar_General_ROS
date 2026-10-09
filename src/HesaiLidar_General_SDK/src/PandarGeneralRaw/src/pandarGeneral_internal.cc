@@ -17,6 +17,7 @@
 #include <sstream>
 
 #include "src/input.h"
+#include "pandarGeneral/utc_time.h"
 #include "src/pandarGeneral_internal.h"
 #include "log.h"
 #include <sched.h>
@@ -606,7 +607,6 @@ void PandarGeneral_Internal::Init() {
     }
   }
 
-  SetEnvironmentVariableTZ();
 }
 
 /**
@@ -1052,7 +1052,7 @@ void PandarGeneral_Internal::ProcessGps(const PandarGPS &gpsMsg) {
   t.tm_isdst = 0;
 
   if (gps_callback_) {
-    gps_callback_(static_cast<double>(mktime(&t) + tz_second_));
+    gps_callback_(static_cast<double>(hesai::UtcToUnixSeconds(t) + tz_second_));
   }
 }
 
@@ -1442,7 +1442,7 @@ void PandarGeneral_Internal::CalcPointXYZIT(Pandar40PPacket *pkt, int blockid,
   Pandar40PBlock *block = &pkt->blocks[blockid];
 
   double unix_second =
-      static_cast<double>(mktime(&pkt->t) + tz_second_);
+      static_cast<double>(hesai::UtcToUnixSeconds(pkt->t) + tz_second_);
 
   for (int i = 0; i < LASER_COUNT; ++i) {
     /* for all the units in a block */
@@ -1520,7 +1520,7 @@ void PandarGeneral_Internal::CalcL64PointXYZIT(HS_LIDAR_L64_Packet *pkt, int blo
   tTm.tm_isdst = 0;
 
   double unix_second = \
-      static_cast<double>(mktime(&tTm) + tz_second_);
+      static_cast<double>(hesai::UtcToUnixSeconds(tTm) + tz_second_);
 
   for (int i = 0; i < chLaserNumber; ++i) {
     /* for all the units in a block */
@@ -1599,7 +1599,7 @@ void PandarGeneral_Internal::CalcL20PointXYZIT(HS_LIDAR_L20_Packet *pkt, int blo
   tTm.tm_isdst = 0;
 
   double unix_second = \
-      static_cast<double>(mktime(&tTm) + tz_second_);
+      static_cast<double>(hesai::UtcToUnixSeconds(tTm) + tz_second_);
 
   for (int i = 0; i < chLaserNumber; ++i) {
     /* for all the units in a block */
@@ -1688,7 +1688,7 @@ void PandarGeneral_Internal::CalcQTPointXYZIT(HS_LIDAR_QT_Packet *pkt, int block
   tTm.tm_isdst = 0;
 
   double unix_second = \
-      static_cast<double>(mktime(&tTm) + tz_second_);
+      static_cast<double>(hesai::UtcToUnixSeconds(tTm) + tz_second_);
 
   for (int i = 0; i < chLaserNumber; ++i) {
     /* for all the units in a block */
@@ -1823,7 +1823,7 @@ void PandarGeneral_Internal::CalcXTPointXYZIT(HS_LIDAR_XT_Packet *pkt, int block
   tTm.tm_isdst = 0;
 
   double unix_second = \
-      static_cast<double>(mktime(&tTm) + tz_second_);
+      static_cast<double>(hesai::UtcToUnixSeconds(tTm) + tz_second_);
 
   for (int i = 0; i < chLaserNumber; ++i) {
     /* for all the units in a block */
@@ -2003,33 +2003,6 @@ void PandarGeneral_Internal::PushScanPacket(hesai_lidar::msg::PandarScan::Shared
   }
 }
 
-void PandarGeneral_Internal::SetEnvironmentVariableTZ(){
-  char *TZ; 
-  if((TZ = getenv("TZ"))){
-    printf("TZ=%s\n",TZ); 
-    return;
-  } 
-  unsigned int timezone = 0;
-  time_t t1, t2 ;
-  struct tm *tm_local, *tm_utc;
-  time(&t1);
-  t2 = t1;
-  tm_local = localtime(&t1);
-  t1 = mktime(tm_local) ;
-  tm_utc = gmtime(&t2);
-  t2 = mktime(tm_utc);
-  timezone = 0;
-  std::string data = "TZ=UTC" + std::to_string(timezone);
-  int len = data.length();
-  TZ = (char *)malloc((len + 1) * sizeof(char));
-  data.copy(TZ, len, 0); 
-  if(putenv(TZ) == 0){
-    printf("set environment %s\n", TZ);
-  }
-  else{
-    printf("set environment fail\n");
-  }
-}
 
 hesai_lidar::msg::PandarPacket PandarGeneral_Internal::SaveCorrectionFile(int laserNumber){
   hesai_lidar::msg::PandarPacket result;

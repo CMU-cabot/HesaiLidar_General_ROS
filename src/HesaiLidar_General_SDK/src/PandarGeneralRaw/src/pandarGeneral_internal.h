@@ -428,7 +428,6 @@ class PandarGeneral_Internal {
 
   size_t EmitBackMessege(char chLaserNumber, boost::shared_ptr<PPointCloud> cld, hesai_lidar::msg::PandarScan::SharedPtr scan);
   size_t EmitBackMessege(char chLaserNumber, boost::shared_ptr<PPointCloud> cld, hesai_lidar::msg::PandarScan::SharedPtr scan, bool publish);
-  void SetEnvironmentVariableTZ();
   hesai_lidar::msg::PandarPacket SaveCorrectionFile(int laserNumber);
 
   // bool calculateTransformMatrix(Eigen::Affine3f& matrix, const std::string& target_frame, const std::string& source_frame, const ros::Time& time);
